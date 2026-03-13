@@ -235,7 +235,8 @@ ln -s /etc/letsencrypt/live/${domain}/privkey.pem /root/cert/${domain}/privkey.p
 
 mkdir -p /etc/nginx/stream-enabled
 cat > "/etc/nginx/stream-enabled/stream.conf" << EOF
-map \$ssl_preread_server_name \$sni_name {
+map map_hash_bucket_size 2048;
+\$ssl_preread_server_name \$sni_name {
     hostnames;
     ${reality_domain}      xray;
     ${domain}           www;
