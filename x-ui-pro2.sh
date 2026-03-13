@@ -260,11 +260,23 @@ server {
 
 EOF
 
-grep -xqFR "stream { include /etc/nginx/stream-enabled/*.conf; }" /etc/nginx/* ||echo "stream { include /etc/nginx/stream-enabled/*.conf; }" >> /etc/nginx/nginx.conf
-grep -xqFR "load_module modules/ngx_stream_module.so;" /etc/nginx/* || sed -i '1s/^/load_module \/usr\/lib\/nginx\/modules\/ngx_stream_module.so; /' /etc/nginx/nginx.conf
-grep -xqFR "load_module modules/ngx_stream_geoip2_module.so;" /etc/nginx* || sed -i '2s/^/load_module \/usr\/lib\/nginx\/modules\/ngx_stream_geoip2_module.so; /' /etc/nginx/nginx.conf
-grep -xqFR "worker_rlimit_nofile 16384;" /etc/nginx/* ||echo "worker_rlimit_nofile 16384;" >> /etc/nginx/nginx.conf
+# Проверяем наличие модулей и загружаем только существующие
+grep -xqFR "load_module modules/ngx_stream_module.so;" /etc/nginx/* || {
+    if [ -f "/usr/lib/nginx/modules/ngx_stream_module.so" ]; then
+        sed -i '1s/^/load_module \/usr\/lib\/nginx\/modules\/ngx_stream_module.so; \n/' /etc/nginx/nginx.conf
+    fi
+}
+
+# Проверяем наличие http_geoip2 модуля (не stream_geoip2)
+grep -xqFR "load_module modules/ngx_http_geoip2_module.so;" /etc/nginx* || {
+    if [ -f "/usr/lib/nginx/modules/ngx_http_geoip2_module.so" ]; then
+        sed -i '2s/^/load_module \/usr\/lib\/nginx\/modules\/ngx_http_geoip2_module.so; \n/' /etc/nginx/nginx.conf
+    fi
+}
+
+grep -xqFR "worker_rlimit_nofile 16384;" /etc/nginx/* || echo "worker_rlimit_nofile 16384;" >> /etc/nginx/nginx.conf
 sed -i "/worker_connections/c\worker_connections 4096;" /etc/nginx/nginx.conf
+
 cat > "/etc/nginx/sites-available/80.conf" << EOF
 server {
     listen 80;
