@@ -274,14 +274,23 @@ grep -xqFR "load_module modules/ngx_http_geoip2_module.so;" /etc/nginx* || {
     fi
 }
 
-# Правильное добавление worker_rlimit_nofile
-grep -xqFR "worker_rlimit_nofile" /etc/nginx/nginx.conf || {
+# Правильная установка worker_rlimit_nofile (только если не существует)
+if ! grep -q "^worker_rlimit_nofile" /etc/nginx/nginx.conf; then
     sed -i '/worker_processes/a worker_rlimit_nofile 16384;' /etc/nginx/nginx.conf
-}
+else
+    echo "worker_rlimit_nofile already exists, skipping..."
+fi
 
 # Правильное изменение worker_connections внутри блока events
 if grep -q "events {" /etc/nginx/nginx.conf; then
-    sed -i '/events {/,/}/ s/worker_connections.*/    worker_connections 4096;/' /etc/nginx/nginx.conf
+    # Проверяем, есть ли уже worker_connections внутри events
+    if grep -A10 "events {" /etc/nginx/nginx.conf | grep -q "worker_connections"; then
+        # Если есть - заменяем
+        sed -i '/events {/,/}/ s/worker_connections.*/    worker_connections 4096;/' /etc/nginx/nginx.conf
+    else
+        # Если нет - добавляем
+        sed -i '/events {/a \    worker_connections 4096;' /etc/nginx/nginx.conf
+    fi
 else
     echo -e "\nevents {\n    worker_connections 4096;\n}" >> /etc/nginx/nginx.conf
 fi
