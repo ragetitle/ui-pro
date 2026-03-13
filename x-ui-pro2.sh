@@ -274,8 +274,17 @@ grep -xqFR "load_module modules/ngx_http_geoip2_module.so;" /etc/nginx* || {
     fi
 }
 
-grep -xqFR "worker_rlimit_nofile 16384;" /etc/nginx/* || echo "worker_rlimit_nofile 16384;" >> /etc/nginx/nginx.conf
-sed -i "/worker_connections/c\worker_connections 4096;" /etc/nginx/nginx.conf
+# Правильное добавление worker_rlimit_nofile
+grep -xqFR "worker_rlimit_nofile" /etc/nginx/nginx.conf || {
+    sed -i '/worker_processes/a worker_rlimit_nofile 16384;' /etc/nginx/nginx.conf
+}
+
+# Правильное изменение worker_connections внутри блока events
+if grep -q "events {" /etc/nginx/nginx.conf; then
+    sed -i '/events {/,/}/ s/worker_connections.*/    worker_connections 4096;/' /etc/nginx/nginx.conf
+else
+    echo -e "\nevents {\n    worker_connections 4096;\n}" >> /etc/nginx/nginx.conf
+fi
 
 cat > "/etc/nginx/sites-available/80.conf" << EOF
 server {
